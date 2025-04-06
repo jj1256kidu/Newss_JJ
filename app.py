@@ -134,7 +134,12 @@ def main():
                     if article_text.strip():
                         st.success("Text extracted successfully!")
                         st.markdown("### Article Text")
-                        st.text_area("", article_text, height=400)
+                        st.text_area(
+                            "Extracted Article Content",
+                            article_text,
+                            height=400,
+                            label_visibility="collapsed"
+                        )
                         
                         # Add download button
                         st.download_button(
