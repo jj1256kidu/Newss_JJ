@@ -22,7 +22,42 @@ def clean_text(text):
     text = ' '.join(text.split())
     return text.strip()
 
+def is_content_element(elem):
+    # Skip elements that are likely navigation or non-content
+    skip_classes = [
+        'nav', 'navigation', 'menu', 'sidebar', 'ad', 'advertisement',
+        'header', 'footer', 'top-bar', 'bottom-bar', 'social-share',
+        'related', 'recommended', 'comments', 'newsletter', 'subscribe',
+        'cookie', 'privacy', 'terms', 'language', 'edition'
+    ]
+    
+    skip_ids = [
+        'nav', 'menu', 'sidebar', 'header', 'footer', 'comments',
+        'related', 'recommended', 'newsletter', 'subscribe'
+    ]
+    
+    # Check element's class
+    elem_classes = elem.get('class', [])
+    if any(skip in ' '.join(elem_classes).lower() for skip in skip_classes):
+        return False
+    
+    # Check element's id
+    elem_id = elem.get('id', '')
+    if any(skip in elem_id.lower() for skip in skip_ids):
+        return False
+    
+    # Check element's role
+    elem_role = elem.get('role', '')
+    if elem_role in ['navigation', 'complementary', 'banner']:
+        return False
+    
+    return True
+
 def extract_article_text(soup):
+    # Remove script and style elements
+    for script in soup(["script", "style", "nav", "header", "footer"]):
+        script.decompose()
+    
     # Common article content selectors
     content_selectors = [
         'article',  # Common article tag
@@ -40,19 +75,7 @@ def extract_article_text(soup):
         '.article-inner',
         '.article-detail',
         '.article-page',
-        '.article-full',
-        '.article-content-wrapper',
-        '.article-content-container',
-        '.article-content-inner',
-        '.article-content-main',
-        '.article-content-body',
-        '.article-content-text',
-        '.article-content-wrapper',
-        '.article-content-container',
-        '.article-content-inner',
-        '.article-content-main',
-        '.article-content-body',
-        '.article-content-text'
+        '.article-full'
     ]
     
     # Try to find the main content using selectors
@@ -60,24 +83,23 @@ def extract_article_text(soup):
         article = soup.select_one(selector)
         if article:
             # Get all text elements
-            text_elements = article.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
-            # Filter out navigation, ads, and other non-content elements
-            text_elements = [elem for elem in text_elements 
-                           if not any(cls in elem.get('class', []) 
-                                   for cls in ['nav', 'navigation', 'menu', 'sidebar', 'ad', 'advertisement'])]
-            return clean_text(' '.join(elem.get_text() for elem in text_elements))
+            text_elements = article.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+            # Filter out non-content elements
+            text_elements = [elem for elem in text_elements if is_content_element(elem)]
+            if text_elements:
+                return clean_text(' '.join(elem.get_text() for elem in text_elements))
     
     # If no specific selector works, try to find the main content area
     main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=lambda x: x and 'content' in x.lower())
     if main_content:
-        text_elements = main_content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
-        text_elements = [elem for elem in text_elements 
-                        if not any(cls in elem.get('class', []) 
-                                for cls in ['nav', 'navigation', 'menu', 'sidebar', 'ad', 'advertisement'])]
-        return clean_text(' '.join(elem.get_text() for elem in text_elements))
+        text_elements = main_content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+        text_elements = [elem for elem in text_elements if is_content_element(elem)]
+        if text_elements:
+            return clean_text(' '.join(elem.get_text() for elem in text_elements))
     
     # Fallback to all paragraphs and headings
     text_elements = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+    text_elements = [elem for elem in text_elements if is_content_element(elem)]
     return clean_text(' '.join(elem.get_text() for elem in text_elements))
 
 def main():
