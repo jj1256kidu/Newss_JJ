@@ -67,4 +67,4 @@ def main():
             st.error("Please enter a valid URL")
 
 if __name__ == "__main__":
-    main() 
+    main()
