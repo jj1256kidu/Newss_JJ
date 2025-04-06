@@ -28,12 +28,17 @@ def is_content_element(elem):
         'nav', 'navigation', 'menu', 'sidebar', 'ad', 'advertisement',
         'header', 'footer', 'top-bar', 'bottom-bar', 'social-share',
         'related', 'recommended', 'comments', 'newsletter', 'subscribe',
-        'cookie', 'privacy', 'terms', 'language', 'edition'
+        'cookie', 'privacy', 'terms', 'language', 'edition',
+        'toi', 'timesofindia', 'top_nav', 'main_nav', 'sub_nav',
+        'top_stories', 'trending', 'most_popular', 'latest_news',
+        'news_tabs', 'news_sections', 'news_categories'
     ]
     
     skip_ids = [
         'nav', 'menu', 'sidebar', 'header', 'footer', 'comments',
-        'related', 'recommended', 'newsletter', 'subscribe'
+        'related', 'recommended', 'newsletter', 'subscribe',
+        'toi', 'timesofindia', 'top_nav', 'main_nav', 'sub_nav',
+        'top_stories', 'trending', 'most_popular', 'latest_news'
     ]
     
     # Check element's class
@@ -51,14 +56,20 @@ def is_content_element(elem):
     if elem_role in ['navigation', 'complementary', 'banner']:
         return False
     
+    # Check for common news site navigation text
+    nav_text = ['home', 'news', 'india', 'world', 'business', 'sports', 'entertainment',
+                'lifestyle', 'education', 'technology', 'science', 'health', 'opinion']
+    if any(text in elem.get_text().lower() for text in nav_text):
+        return False
+    
     return True
 
 def extract_article_text(soup):
     # Remove script and style elements
-    for script in soup(["script", "style", "nav", "header", "footer"]):
+    for script in soup(["script", "style", "nav", "header", "footer", "aside"]):
         script.decompose()
     
-    # Common article content selectors
+    # Common article content selectors for news sites
     content_selectors = [
         'article',  # Common article tag
         '.article-content',
@@ -75,7 +86,14 @@ def extract_article_text(soup):
         '.article-inner',
         '.article-detail',
         '.article-page',
-        '.article-full'
+        '.article-full',
+        '.Normal',  # TOI specific
+        '.article',  # Generic news sites
+        '.story',   # Generic news sites
+        '.content', # Generic news sites
+        '.main-content', # Generic news sites
+        '.article-container', # Generic news sites
+        '.article-wrapper'    # Generic news sites
     ]
     
     # Try to find the main content using selectors
