@@ -17,25 +17,68 @@ def is_valid_url(url):
     except:
         return False
 
+def clean_text(text):
+    # Remove extra whitespace and normalize newlines
+    text = ' '.join(text.split())
+    return text.strip()
+
 def extract_article_text(soup):
-    # Try different selectors for article content
-    selectors = [
+    # Common article content selectors
+    content_selectors = [
         'article',  # Common article tag
-        '.article-content',  # Common class
+        '.article-content',
         '.post-content',
         '.entry-content',
         '#content',
         'main',
-        '.story-content'
+        '.story-content',
+        '.article-body',
+        '.article-text',
+        '.article-main',
+        '.article-wrapper',
+        '.article-container',
+        '.article-inner',
+        '.article-detail',
+        '.article-page',
+        '.article-full',
+        '.article-content-wrapper',
+        '.article-content-container',
+        '.article-content-inner',
+        '.article-content-main',
+        '.article-content-body',
+        '.article-content-text',
+        '.article-content-wrapper',
+        '.article-content-container',
+        '.article-content-inner',
+        '.article-content-main',
+        '.article-content-body',
+        '.article-content-text'
     ]
     
-    for selector in selectors:
+    # Try to find the main content using selectors
+    for selector in content_selectors:
         article = soup.select_one(selector)
         if article:
-            return ' '.join([p.get_text() for p in article.find_all(['p', 'h1', 'h2', 'h3'])])
+            # Get all text elements
+            text_elements = article.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
+            # Filter out navigation, ads, and other non-content elements
+            text_elements = [elem for elem in text_elements 
+                           if not any(cls in elem.get('class', []) 
+                                   for cls in ['nav', 'navigation', 'menu', 'sidebar', 'ad', 'advertisement'])]
+            return clean_text(' '.join(elem.get_text() for elem in text_elements))
     
-    # Fallback to all paragraphs if no specific selector works
-    return ' '.join([p.get_text() for p in soup.find_all(['p', 'h1', 'h2', 'h3'])])
+    # If no specific selector works, try to find the main content area
+    main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=lambda x: x and 'content' in x.lower())
+    if main_content:
+        text_elements = main_content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
+        text_elements = [elem for elem in text_elements 
+                        if not any(cls in elem.get('class', []) 
+                                for cls in ['nav', 'navigation', 'menu', 'sidebar', 'ad', 'advertisement'])]
+        return clean_text(' '.join(elem.get_text() for elem in text_elements))
+    
+    # Fallback to all paragraphs and headings
+    text_elements = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+    return clean_text(' '.join(elem.get_text() for elem in text_elements))
 
 def main():
     st.title("📰 NewsNex - Article Text Extractor")
