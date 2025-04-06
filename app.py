@@ -86,54 +86,57 @@ def extract_profiles_from_article(url):
         
         profiles = []
         for pattern, expected_groups in name_patterns:
-            matches = re.finditer(pattern[0], article_text)
-            for match in matches:
-                try:
-                    groups = match.groups()
-                    if len(groups) != expected_groups:
-                        continue
+            try:
+                matches = re.finditer(pattern, article_text)
+                for match in matches:
+                    try:
+                        groups = match.groups()
+                        if len(groups) != expected_groups:
+                            continue
+                            
+                        if expected_groups == 3:
+                            if pattern == name_patterns[0][0]:  # Name, Role of Company
+                                name, role, company = groups
+                            else:  # Name, who works at Company
+                                name, role, company = groups
+                        elif expected_groups == 2:
+                            if pattern == name_patterns[1][0]:  # Name, Role
+                                name, role = groups
+                                company = "Organization"
+                            elif pattern == name_patterns[2][0]:  # Name of Company
+                                name, company = groups
+                                role = "Representative"
+                            else:  # Role Name
+                                role, name = groups
+                                company = "Organization"
+                        else:  # expected_groups == 1
+                            name = groups[0]
+                            role = "Expert"
+                            company = "Organization"
                         
-                    if expected_groups == 3:
-                        if pattern[0] == name_patterns[0][0]:  # Name, Role of Company
-                            name, role, company = groups
-                        else:  # Name, who works at Company
-                            name, role, company = groups
-                    elif expected_groups == 2:
-                        if pattern[0] == name_patterns[1][0]:  # Name, Role
-                            name, role = groups
-                            company = "Organization"
-                        elif pattern[0] == name_patterns[2][0]:  # Name of Company
-                            name, company = groups
-                            role = "Representative"
-                        else:  # Role Name
-                            role, name = groups
-                            company = "Organization"
-                    else:  # expected_groups == 1
-                        name = groups[0]
-                        role = "Expert"
-                        company = "Organization"
-                    
-                    # Skip if it's likely a product name
-                    if is_product_name(name):
+                        # Skip if it's likely a product name
+                        if is_product_name(name):
+                            continue
+                        
+                        # Find a quote associated with this person
+                        quote_pattern = f'{name}[^.!?]*[.!?]'
+                        quote_match = re.search(quote_pattern, article_text)
+                        quote = quote_match.group(0) if quote_match else "No direct quote found"
+                        
+                        # Calculate confidence based on pattern match
+                        confidence = 95 if expected_groups > 1 else 85
+                        
+                        profiles.append({
+                            "name": name.strip(),
+                            "role": role.strip(),
+                            "company": company.strip(),
+                            "quote": quote.strip(),
+                            "confidence": confidence
+                        })
+                    except Exception as e:
                         continue
-                    
-                    # Find a quote associated with this person
-                    quote_pattern = f'{name}[^.!?]*[.!?]'
-                    quote_match = re.search(quote_pattern, article_text)
-                    quote = quote_match.group(0) if quote_match else "No direct quote found"
-                    
-                    # Calculate confidence based on pattern match
-                    confidence = 95 if expected_groups > 1 else 85
-                    
-                    profiles.append({
-                        "name": name.strip(),
-                        "role": role.strip(),
-                        "company": company.strip(),
-                        "quote": quote.strip(),
-                        "confidence": confidence
-                    })
-                except Exception as e:
-                    continue
+            except Exception as e:
+                continue
         
         # Remove duplicates while preserving order
         seen = set()
