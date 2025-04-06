@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+import re
 
 # Set page config
 st.set_page_config(
@@ -9,6 +11,54 @@ st.set_page_config(
     page_icon="📰",
     layout="wide"
 )
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
+
+def extract_profiles_from_article(url):
+    try:
+        # Validate URL
+        if not is_valid_url(url):
+            return None, "Invalid URL format. Please enter a valid news article URL."
+        
+        # Fetch the article
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # Parse the content
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract article text
+        article_text = ' '.join([p.get_text() for p in soup.find_all('p')])
+        
+        # Basic name extraction (this is a simplified version)
+        # In a real implementation, you would use NLP to identify people and their roles
+        names = re.findall(r'([A-Z][a-z]+ [A-Z][a-z]+)', article_text)
+        
+        # Create mock profiles (replace this with your actual profile extraction logic)
+        profiles = []
+        for name in set(names[:5]):  # Limit to 5 unique names for demo
+            profiles.append({
+                "name": name,
+                "role": "Expert",  # Replace with actual role extraction
+                "company": "Organization",  # Replace with actual company extraction
+                "quote": "Quote from article",  # Replace with actual quote extraction
+                "confidence": 85  # Replace with actual confidence score
+            })
+        
+        return profiles, None
+        
+    except requests.exceptions.RequestException as e:
+        return None, f"Error fetching the article: {str(e)}"
+    except Exception as e:
+        return None, f"An error occurred: {str(e)}"
 
 def main():
     st.title("📰 NewsNex - Turning Headlines into Human Intelligence")
@@ -20,25 +70,13 @@ def main():
     if st.button("Extract Profiles"):
         if url:
             with st.spinner("Extracting profiles..."):
-                try:
-                    # Mock data for demonstration
-                    profiles = [
-                        {
-                            "name": "John Smith",
-                            "role": "CTO",
-                            "company": "TechCorp",
-                            "quote": "We're investing in AI research.",
-                            "confidence": 95
-                        },
-                        {
-                            "name": "Sarah Johnson",
-                            "role": "Head of AI Research",
-                            "company": "TechCorp",
-                            "quote": "This investment will accelerate development.",
-                            "confidence": 88
-                        }
-                    ]
-                    
+                profiles, error = extract_profiles_from_article(url)
+                
+                if error:
+                    st.error(error)
+                elif not profiles:
+                    st.warning("No profiles found in this article. Please try another news article.")
+                else:
                     st.success(f"Found {len(profiles)} profiles!")
                     
                     # Display profiles
@@ -61,8 +99,6 @@ def main():
                             file_name="profiles.csv",
                             mime="text/csv"
                         )
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
         else:
             st.error("Please enter a valid URL")
 
