@@ -25,6 +25,26 @@ def is_product_name(name):
                     'motorola', 'samsung', 'infinix', 'iphone', 'android', 'ios']
     return any(term in name.lower() for term in product_terms)
 
+def extract_article_text(soup):
+    # Try different selectors for article content
+    selectors = [
+        'article',  # Common article tag
+        '.article-content',  # Common class
+        '.post-content',
+        '.entry-content',
+        '#content',
+        'main',
+        '.story-content'
+    ]
+    
+    for selector in selectors:
+        article = soup.select_one(selector)
+        if article:
+            return ' '.join([p.get_text() for p in article.find_all(['p', 'h1', 'h2', 'h3'])])
+    
+    # Fallback to all paragraphs if no specific selector works
+    return ' '.join([p.get_text() for p in soup.find_all(['p', 'h1', 'h2', 'h3'])])
+
 def extract_profiles_from_article(url):
     try:
         # Validate URL
@@ -41,16 +61,27 @@ def extract_profiles_from_article(url):
         # Parse the content
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Extract article text
-        article_text = ' '.join([p.get_text() for p in soup.find_all('p')])
+        # Extract article text with improved method
+        article_text = extract_article_text(soup)
         
-        # Improved name extraction
-        # Look for patterns like "John Smith, CEO of Company" or "According to John Smith"
+        # Improved name extraction patterns
         name_patterns = [
+            # Standard patterns
             r'([A-Z][a-z]+ [A-Z][a-z]+), ([A-Z][a-zA-Z\s]+) of ([A-Z][a-zA-Z\s]+)',
-            r'According to ([A-Z][a-z]+ [A-Z][a-z]+)',
+            r'([A-Z][a-z]+ [A-Z][a-z]+), ([A-Z][a-zA-Z\s]+)',
+            r'([A-Z][a-z]+ [A-Z][a-z]+) of ([A-Z][a-zA-Z\s]+)',
+            
+            # Quoted patterns
+            r'"([A-Z][a-z]+ [A-Z][a-z]+)"',
+            r'([A-Z][a-z]+ [A-Z][a-z]+) said',
+            r'([A-Z][a-z]+ [A-Z][a-z]+) told',
+            
+            # Role-based patterns
+            r'([A-Z][a-zA-Z\s]+) ([A-Z][a-z]+ [A-Z][a-z]+)',
             r'([A-Z][a-z]+ [A-Z][a-z]+), who ([a-z]+) at ([A-Z][a-zA-Z\s]+)',
-            r'([A-Z][a-z]+ [A-Z][a-z]+), ([A-Z][a-zA-Z\s]+)'
+            
+            # Simple name patterns (as fallback)
+            r'([A-Z][a-z]+ [A-Z][a-z]+)'
         ]
         
         profiles = []
@@ -59,14 +90,24 @@ def extract_profiles_from_article(url):
             for match in matches:
                 if pattern == name_patterns[0]:  # "Name, Role of Company"
                     name, role, company = match.groups()
-                elif pattern == name_patterns[1]:  # "According to Name"
+                elif pattern == name_patterns[1]:  # "Name, Role"
+                    name, role = match.groups()
+                    company = "Organization"
+                elif pattern == name_patterns[2]:  # "Name of Company"
+                    name, company = match.groups()
+                    role = "Representative"
+                elif pattern in name_patterns[3:5]:  # Quoted patterns
+                    name = match.group(1)
+                    role = "Spokesperson"
+                    company = "Organization"
+                elif pattern == name_patterns[5]:  # Role-based pattern
+                    role, name = match.groups()
+                    company = "Organization"
+                elif pattern == name_patterns[6]:  # "Name, who works at Company"
+                    name, role, company = match.groups()
+                else:  # Simple name pattern
                     name = match.group(1)
                     role = "Expert"
-                    company = "Organization"
-                elif pattern == name_patterns[2]:  # "Name, who works at Company"
-                    name, role, company = match.groups()
-                else:  # "Name, Role"
-                    name, role = match.groups()
                     company = "Organization"
                 
                 # Skip if it's likely a product name
@@ -78,12 +119,15 @@ def extract_profiles_from_article(url):
                 quote_match = re.search(quote_pattern, article_text)
                 quote = quote_match.group(0) if quote_match else "No direct quote found"
                 
+                # Calculate confidence based on pattern match
+                confidence = 95 if pattern in name_patterns[:3] else 85
+                
                 profiles.append({
                     "name": name.strip(),
                     "role": role.strip(),
                     "company": company.strip(),
                     "quote": quote.strip(),
-                    "confidence": 90  # Higher confidence for structured matches
+                    "confidence": confidence
                 })
         
         # Remove duplicates while preserving order
