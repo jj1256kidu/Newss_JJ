@@ -197,4 +197,61 @@ For technical support, feature requests, or partnership inquiries:
 
 ## 📜 License
 
-NewsNex is proprietary software. All rights reserved. 
+NewsNex is proprietary software. All rights reserved.
+
+# NewsNex - Streamlit Deployment
+
+## Local Development
+
+1. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Run the application:
+```bash
+streamlit run app.py
+```
+
+## Streamlit Cloud Deployment
+
+1. Create a GitHub repository and push your code:
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin <your-github-repo-url>
+git push -u origin main
+```
+
+2. Go to [Streamlit Cloud](https://streamlit.io/cloud)
+3. Sign in with your GitHub account
+4. Click "New app"
+5. Select your repository and branch
+6. Set the main file path to `app.py`
+7. Click "Deploy"
+
+## Troubleshooting
+
+If you encounter deployment issues:
+
+1. Check the Streamlit Cloud logs
+2. Verify all dependencies are correctly specified
+3. Ensure Python version compatibility (>=3.8)
+4. Check for any missing or conflicting dependencies
+
+## Project Structure
+
+```
+newsnex/
+├── app.py              # Main Streamlit application
+├── requirements.txt    # Python dependencies
+├── setup.py           # Package configuration
+└── README.md          # Documentation
+``` 
