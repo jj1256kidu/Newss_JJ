@@ -19,6 +19,12 @@ def is_valid_url(url):
     except:
         return False
 
+def is_product_name(name):
+    # List of common product-related terms to filter out
+    product_terms = ['ultra', 'pro', 'max', 'plus', 'galaxy', 'note', 'edge', 'fold', 
+                    'motorola', 'samsung', 'infinix', 'iphone', 'android', 'ios']
+    return any(term in name.lower() for term in product_terms)
+
 def extract_profiles_from_article(url):
     try:
         # Validate URL
@@ -38,22 +44,57 @@ def extract_profiles_from_article(url):
         # Extract article text
         article_text = ' '.join([p.get_text() for p in soup.find_all('p')])
         
-        # Basic name extraction (this is a simplified version)
-        # In a real implementation, you would use NLP to identify people and their roles
-        names = re.findall(r'([A-Z][a-z]+ [A-Z][a-z]+)', article_text)
+        # Improved name extraction
+        # Look for patterns like "John Smith, CEO of Company" or "According to John Smith"
+        name_patterns = [
+            r'([A-Z][a-z]+ [A-Z][a-z]+), ([A-Z][a-zA-Z\s]+) of ([A-Z][a-zA-Z\s]+)',
+            r'According to ([A-Z][a-z]+ [A-Z][a-z]+)',
+            r'([A-Z][a-z]+ [A-Z][a-z]+), who ([a-z]+) at ([A-Z][a-zA-Z\s]+)',
+            r'([A-Z][a-z]+ [A-Z][a-z]+), ([A-Z][a-zA-Z\s]+)'
+        ]
         
-        # Create mock profiles (replace this with your actual profile extraction logic)
         profiles = []
-        for name in set(names[:5]):  # Limit to 5 unique names for demo
-            profiles.append({
-                "name": name,
-                "role": "Expert",  # Replace with actual role extraction
-                "company": "Organization",  # Replace with actual company extraction
-                "quote": "Quote from article",  # Replace with actual quote extraction
-                "confidence": 85  # Replace with actual confidence score
-            })
+        for pattern in name_patterns:
+            matches = re.finditer(pattern, article_text)
+            for match in matches:
+                if pattern == name_patterns[0]:  # "Name, Role of Company"
+                    name, role, company = match.groups()
+                elif pattern == name_patterns[1]:  # "According to Name"
+                    name = match.group(1)
+                    role = "Expert"
+                    company = "Organization"
+                elif pattern == name_patterns[2]:  # "Name, who works at Company"
+                    name, role, company = match.groups()
+                else:  # "Name, Role"
+                    name, role = match.groups()
+                    company = "Organization"
+                
+                # Skip if it's likely a product name
+                if is_product_name(name):
+                    continue
+                
+                # Find a quote associated with this person
+                quote_pattern = f'{name}[^.!?]*[.!?]'
+                quote_match = re.search(quote_pattern, article_text)
+                quote = quote_match.group(0) if quote_match else "No direct quote found"
+                
+                profiles.append({
+                    "name": name.strip(),
+                    "role": role.strip(),
+                    "company": company.strip(),
+                    "quote": quote.strip(),
+                    "confidence": 90  # Higher confidence for structured matches
+                })
         
-        return profiles, None
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_profiles = []
+        for profile in profiles:
+            if profile['name'] not in seen:
+                seen.add(profile['name'])
+                unique_profiles.append(profile)
+        
+        return unique_profiles, None
         
     except requests.exceptions.RequestException as e:
         return None, f"Error fetching the article: {str(e)}"
